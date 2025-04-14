@@ -1,9 +1,12 @@
 # ESP8266 Controller
-IM NOOB \n
-## description
-A Flutter project.
+alert: IM NOOB
 
-## Getting Started
+## description
+A Flutter project that connect to any MQTT Server.
+
+support add Any Named devices
+support add Any Named Config
+
+## Get Start
 copy lib to a new flutter project
-## run it
-run flutter build apk --debug
+it support run on Windows/Android, best in Android Platform
