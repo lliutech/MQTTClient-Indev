@@ -4,25 +4,21 @@ import 'package:esp8266_controller/add_device/edit_device.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:mqtt_client/mqtt_client.dart';
 import 'package:path_provider/path_provider.dart';
-import 'templates/config_template.dart';
-
+import 'utils/mqtt_mananger.dart';
 import 'templates/widgets.dart';
 import 'sidebar.dart';
 
-void main() async {
-  String? dbPath;
+Future<void> initializeApp() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (Platform.isAndroid) {
-    Directory directory = (await getExternalStorageDirectory())!;
-    dbPath = "${directory.path}/userData";
-  } else {
-    dbPath = "./userData";
-  }
+  String dbPath =
+      Platform.isAndroid
+          ? "${(await getExternalStorageDirectory())!.path}/userData"
+          : "./userData";
 
   await Hive.initFlutter();
-  // 向DataController注入信息
   Get.put(
     DataController(
       connectionInfo: await Hive.openBox<Map>("ConnectionInfo", path: dbPath),
@@ -30,6 +26,11 @@ void main() async {
     ),
   );
 
+  Get.put(ConnectionController());
+}
+
+void main() async {
+  await initializeApp();
   runApp(GetMaterialApp(home: Home()));
 }
 
@@ -47,13 +48,15 @@ class DataController extends GetxController {
   DataController({required this.connectionInfo, required this.deviceInfo});
 
   Future<void> _update() async {
-    connectConfig.value = connectionInfo.toMap();
-    configNum.value = connectConfig.value.length;
-    configNames.value = connectConfig.value.keys.toList();
+    _updateBox(connectionInfo, connectConfig, configNum, configNames);
+    log("ConnectionInfo； ${configNum.value}");
+    _updateBox(deviceInfo, devices, deviceNum, deviceNames);
+  }
 
-    devices.value = deviceInfo.toMap();
-    deviceNum.value = devices.value.length;
-    deviceNames.value = devices.value.keys.toList();
+  void _updateBox(Box box, Rx<Map> target, Rx<int> count, Rx<List> names) {
+    target.value = box.toMap();
+    count.value = target.value.length;
+    names.value = target.value.keys.toList();
   }
 
   @override
@@ -82,37 +85,45 @@ class DataController extends GetxController {
   }
 
   Future<void> dropConfig(name) async {
+    print("before drop: $configNum");
     await connectionInfo.delete(name);
     await _update();
+    print("after drop: $configNum");
   }
 
   Future readDevice(name) async {
     return await deviceInfo.get(name);
   }
+}
 
-  // Future<void> clearDevice() async {
-  //   await deviceInfo.clear();
-  //   await _update();
-  // }
+class ConnectionController extends GetxController {
+  var connections = Rx<Map<String, MqttManager>>({});
 
-  // Future<void> addDevice() async {
-  //   String name = WordPair.random().toString();
-  //   List<String> words = List.generate(8, (i) => WordPair.random().toString());
+  void addDevice(name, Map config) {
+    connections.value[name] = MqttManager();
+    connections.value[name]!.connect(
+      config["server"],
+      config["port"],
+      name,
+      config["keypath"],
+      config["username"],
+      config["password"],
+      config["topic"],
+    );
+  }
 
-  //   final config =
-  //       DeviceConfig(
-  //         connectionName: words[1],
-  //         functions: false,
-  //         openHour: words[3],
-  //         openMinute: words[4],
-  //         closeHour: words[5],
-  //         closeMinute: words[6],
-  //         duration: null,
-  //         targetStatue: false,
-  //       ).tMap();
-
-  //   updateDevice(name, config);
-  // }
+  void reconnect(name, Map config) {
+    connections.value[name] = MqttManager();
+    connections.value[name]!.connect(
+      config["server"],
+      config["port"],
+      name,
+      config["keypath"],
+      config["username"],
+      config["password"],
+      config["topic"],
+    );
+  }
 }
 
 class Home extends StatefulWidget {
@@ -123,6 +134,10 @@ class Home extends StatefulWidget {
 }
 
 class HomeState extends State<Home> with WidgetsBindingObserver {
+  final DataController c = Get.find<DataController>();
+  final ConnectionController controlController =
+      Get.find<ConnectionController>();
+
   @override
   void initState() {
     super.initState();
@@ -142,18 +157,32 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused) {
       // 应用进入后台
       log("App is in the background.");
-      //disconnectFromServer(); // 断开服务器连接
+      // disconnectFromServer(); // 断开服务器连接
     } else if (state == AppLifecycleState.resumed) {
       // 应用回到前台
       log("App is in the foreground.");
-      //reconnectToServer(); // 重新连接服务器
+      reconnectforEach();
     }
   }
 
-  List<Widget> initStartPage(DataController c) {
+  List<Widget> initStartPage() {
     // 当此处被运行deviceNum一定大于0
     return List.generate(c.deviceNum.value, (i) {
       String name = c.deviceNames.value[i];
+      String configName = c.devices.value[name]["connectionName"];
+      Map currentConfig = c.connectConfig.value[configName];
+
+      if (controlController.connections.value[name] == null) {
+        controlController.addDevice(name, currentConfig);
+      } else if (controlController
+              .connections
+              .value[name]!
+              .client
+              .connectionStatus!
+              .state !=
+          MqttConnectionState.connected) {
+        controlController.reconnect(name, currentConfig);
+      }
 
       return c.devices.value[name]["deviceConfig"]["functions"] == true
           ? InitPageTapableGrid(name: name)
@@ -161,17 +190,33 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
     });
   }
 
+  void reconnectforEach() {
+    for (var i in c.deviceNames.value) {
+      String configName = c.devices.value[i]["connectionName"];
+      Map currentConfig = c.connectConfig.value[configName];
+
+      if (controlController.connections.value[i] == null) {
+        controlController.addDevice(configName, currentConfig);
+      } else if (controlController.connections.value[i]!.isConnected.value ==
+          false) {
+        controlController.reconnect(configName, currentConfig);
+      } else {
+        print(
+          "ConnectionName: $configName skipped, Because it has already connected",
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final DataController c = Get.find<DataController>();
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
 
       drawer: SideMenu(),
 
       appBar: AppBar(
-        title: Text("Tests APP"),
+        title: Text("MQTT Client"),
         actions: [
           SizedBox(width: 25),
           IconButton(
@@ -193,7 +238,7 @@ class HomeState extends State<Home> with WidgetsBindingObserver {
                     padding: const EdgeInsets.all(2.5),
                     mainAxisSpacing: 4,
                     crossAxisSpacing: 4,
-                    children: initStartPage(c),
+                    children: initStartPage(),
                   ),
                 )
                 : Center(child: Text("未找到任何设备，请点击右上角添加一个。")),

@@ -75,6 +75,7 @@ class ConfigPageState extends State<ConfigPage> {
               : ListView.builder(
                 itemCount: c.configNum.value,
                 itemBuilder: (BuildContext context, int index) {
+                  print(index);
                   final key = c.configNames.value[index];
 
                   final name = c.connectConfig.value[key]["server"];

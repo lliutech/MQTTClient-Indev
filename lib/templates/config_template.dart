@@ -23,10 +23,11 @@ class ConnectConfig {
   }
 }
 
+// 用于处理主页面设备显示的配置
 class DeviceConfig {
   String? connectionName;
   int? duration, openHour, openMinute, closeHour, closeMinute;
-  bool functions, targetStatue;
+  bool functions, targetStatue, manualStatue;
 
   DeviceConfig({
     required this.connectionName,
@@ -37,6 +38,7 @@ class DeviceConfig {
     required this.closeMinute,
     required this.targetStatue,
     required this.duration,
+    required this.manualStatue,
   });
 
   Map tMap() {
@@ -50,28 +52,39 @@ class DeviceConfig {
         "closeMinute": closeMinute,
         "duration": duration,
         "targetStatue": targetStatue,
+        "manualStatue": manualStatue,
       },
     };
   }
 }
 
+// 用于处理设备发送指令的基本配置
 class DeviceControl {
-  String? mode,
-      openHour,
-      openMinute,
-      closeHour,
-      closeMinute,
-      targetStatue,
-      duration;
+  String? mode;
+  dynamic openHour, openMinute, closeHour, closeMinute;
+  bool? targetStatue, manualStatue;
+  int? duration;
+
+  DeviceControl({
+    required this.mode,
+    required this.openHour,
+    required this.openMinute,
+    required this.closeHour,
+    required this.closeMinute,
+    required this.targetStatue,
+    required this.duration,
+    required this.manualStatue,
+  });
 
   String tString() {
     return {
-      "mode": null,
+      "mode": mode,
       "openHour": openHour,
       "openMinute": openMinute,
       "closeHour": closeHour,
       "closeMinute": closeMinute,
       "targetStatue": targetStatue,
+      "manualStatue": manualStatue,
       "duration": duration,
     }.toString();
   }

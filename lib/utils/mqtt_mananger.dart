@@ -1,15 +1,14 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
+import 'package:get/get.dart';
 
 class MqttManager {
-  late MqttServerClient client = MqttServerClient.withPort(
-    "",
-    "clientId",
-    8883,
-  );
+  final RxBool isConnected = false.obs;
+  late MqttServerClient client = MqttServerClient.withPort("", "", 8883);
 
-  Future<String> connect(
+  Future<void> connect(
     String server,
     int port,
     String clientId,
@@ -19,7 +18,6 @@ class MqttManager {
     String? topic,
   ) async {
     client = MqttServerClient.withPort(server, clientId, port);
-
     // 设置安全连接（使用证书）
     client.secure = true;
     client.setProtocolV311();
@@ -29,7 +27,7 @@ class MqttManager {
     try {
       securityContext.setTrustedCertificates(certPath); // 设置CA证书
     } catch (e) {
-      return ('加载证书失败: \n$e');
+      print(e);
     }
 
     // 设置连接选项
@@ -42,25 +40,32 @@ class MqttManager {
 
     client.connectionMessage = connMessage;
 
+    // 监听连接状态的变化
+    client.onDisconnected = () {
+      isConnected.value = false;
+    };
+
+    client.onConnected = () {
+      isConnected.value = true;
+    };
+    // 尝试连接服务器
     try {
       await client.connect();
       client.subscribe(topic.toString(), MqttQos.atLeastOnce);
-      print("LinkSuccess");
+      log("LinkSuccess");
     } catch (e) {
-      return "LinkFailed \n${e}";
+      log("LinkFailed Because: $e");
     }
 
     // 设置回调函数
-    client.updates?.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
-      for (var message in messages) {
-        final topic = message.topic;
-        final payload = message.payload as MqttPublishMessage;
-        final data = String.fromCharCodes(payload.payload.message);
-        print('Received message on topic: $topic, data: $data');
-      }
-    });
-
-    return "1";
+    // client.updates?.listen((List<MqttReceivedMessage<MqttMessage>> messages) {
+    //   for (var message in messages) {
+    //     final topic = message.topic;
+    //     final payload = message.payload as MqttPublishMessage;
+    //     final data = String.fromCharCodes(payload.payload.message);
+    //     log('Received message on topic: $topic, data: $data');
+    //   }
+    // });
   }
 
   void publishMessage(String topic, String message) {

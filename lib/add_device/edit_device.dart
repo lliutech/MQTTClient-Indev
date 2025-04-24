@@ -44,6 +44,7 @@ class EditDeviceState extends State<EditDevice> {
                     closeMinute: closeMinute,
                     duration: duration,
                     targetStatue: targetStatue,
+                    manualStatue: false,
                   ).tMap();
               if (deviceName == "") {
                 showToast("请输入配置名称！");

@@ -19,6 +19,7 @@ class DataPickerState extends State<DataPicker> {
   late Map thisDeviceConfig;
   late String thisDeviceName;
   DateTime now = DateTime.now();
+  bool longOpen = false;
 
   @override
   void initState() {
@@ -31,6 +32,13 @@ class DataPickerState extends State<DataPicker> {
       _controller = TextEditingController(
         text: thisDeviceConfig["duration"].toString(),
       );
+    }
+    try {
+      if (thisDeviceConfig["duration"] < 0) {
+        longOpen = true;
+      }
+    } catch (e) {
+      longOpen = false;
     }
   }
 
@@ -75,14 +83,14 @@ class DataPickerState extends State<DataPicker> {
 
   void mergedConfig() {
     final oH = thisDeviceConfig["openHour"];
-    final cH = thisDeviceConfig["closeHour"];
-
-    final cM = thisDeviceConfig["closeMinute"];
     final oM = thisDeviceConfig["openMinute"];
+
+    final cH = thisDeviceConfig["closeHour"];
+    final cM = thisDeviceConfig["closeMinute"];
 
     // 设置到最新时间
     void setTime(int duration) {
-      if ((now.hour != oH || now.minute != oM) && now.minute - oM <= 1) {
+      if ((now.hour != oH || now.minute != oM) && now.minute - oM < 0) {
         thisDeviceConfig["openMinute"] = now.minute;
       }
       thisDeviceConfig["duration"] = duration;
@@ -100,6 +108,7 @@ class DataPickerState extends State<DataPicker> {
           closeMinute: thisDeviceConfig["closeMinute"],
           duration: thisDeviceConfig["duration"],
           targetStatue: thisDeviceConfig["targetStatue"] ?? false,
+          manualStatue: false,
         ).tMap(),
       );
     }
@@ -218,12 +227,29 @@ class DataPickerState extends State<DataPicker> {
           },
         ),
 
+        SizedBox(height: 10),
+
         SwitchListTile(
-          title: Text("状态"),
+          title: Text("开关状态"),
           value: thisDeviceConfig["targetStatue"],
           onChanged: (v) {
             setState(() {
               thisDeviceConfig["targetStatue"] = v;
+            });
+          },
+        ),
+
+        SwitchListTile(
+          title: Text("常通?"),
+          value: longOpen,
+          onChanged: (v) {
+            setState(() {
+              longOpen = v;
+              if (v) {
+                thisDeviceConfig["duration"] = -1;
+              } else {
+                thisDeviceConfig["duration"] = "";
+              }
             });
           },
         ),
@@ -240,6 +266,7 @@ class DataPickerState extends State<DataPicker> {
             TextButton(
               onPressed: () {
                 mergedConfig();
+                Navigator.of(context).pop(); // 关闭对话框
               },
               child: Text("应用"),
             ),

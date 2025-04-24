@@ -1,4 +1,7 @@
 // ignore_for_file: must_be_immutable
+import 'dart:developer';
+
+import 'package:esp8266_controller/templates/config_template.dart';
 import 'package:esp8266_controller/utils/toast.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -9,6 +12,8 @@ class CenterStyle extends StatelessWidget {
   String name;
   CenterStyle({super.key, required this.name});
   final DataController c = Get.find<DataController>();
+  final ConnectionController controlController =
+      Get.find<ConnectionController>();
 
   Color functionColor = Color.fromARGB(255, 188, 248, 241);
 
@@ -26,15 +31,47 @@ class CenterStyle extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(name),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Text(name, style: TextStyle(fontSize: 18)),
+              Obx(
+                () =>
+                    controlController
+                                .connections
+                                .value[name]!
+                                .isConnected
+                                .value ==
+                            false
+                        ? Icon(Icons.vpn_lock, color: Colors.red, size: 20)
+                        : Icon(Icons.vpn_lock, color: Colors.green, size: 20),
+              ),
+            ],
+          ),
           SizedBox(height: 5),
           Transform.scale(
             scale: 0.7,
             child: Switch(
-              value: c.devices.value[name]["deviceConfig"]["targetStatue"],
+              value: c.devices.value[name]["deviceConfig"]["manualStatue"],
               onChanged: (v) {
-                c.devices.value[name]["deviceConfig"]["targetStatue"] = v;
+                c.devices.value[name]["deviceConfig"]["manualStatue"] = v;
                 c.updateDevice(name, c.devices.value[name]);
+                String configName = c.devices.value[name]["connectionName"];
+                String message =
+                    DeviceControl(
+                      mode: "2",
+                      openHour: null,
+                      openMinute: null,
+                      closeHour: null,
+                      closeMinute: null,
+                      targetStatue: null,
+                      duration: null,
+                      manualStatue: v,
+                    ).tString();
+                controlController.connections.value[name]!.publishMessage(
+                  c.connectConfig.value[configName]["topic"],
+                  message,
+                );
               },
             ),
           ),
@@ -57,6 +94,27 @@ class CenterStyle extends StatelessWidget {
                     message: "启动定时",
                     child: IconButton(
                       onPressed: () {
+                        final config = c.devices.value[name]["deviceConfig"];
+                        String configName =
+                            c.devices.value[name]["connectionName"];
+                        String message =
+                            DeviceControl(
+                              mode: "1",
+                              openHour: config["openHour"],
+                              openMinute: config["openMinute"],
+                              closeHour: config["closeHour"],
+                              closeMinute: config["closeMinute"],
+                              targetStatue: config["targetStatue"],
+                              duration: config["duration"],
+                              manualStatue: false,
+                            ).tString();
+                        log(message);
+
+                        controlController.connections.value[name]!
+                            .publishMessage(
+                              c.connectConfig.value[configName]["topic"],
+                              message,
+                            );
                         showToast("已启动定时配置");
                       },
                       icon: Icon(Icons.send),
