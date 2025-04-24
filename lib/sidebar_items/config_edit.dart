@@ -35,9 +35,9 @@ class EditConfigState extends State<EditConfig> {
     username = c.connectConfig.value[widget.keys]["username"];
     password = c.connectConfig.value[widget.keys]["password"];
     topic = c.connectConfig.value[widget.keys]["topic"];
-    keyPath = c.connectConfig.value[widget.keys]["keyPath"];
+    keyPath = c.connectConfig.value[widget.keys]["keypath"];
     port = c.connectConfig.value[widget.keys]["port"];
-    enableSSL = false;
+    enableSSL = keyPath == null ? false : true;
   }
 
   @override
