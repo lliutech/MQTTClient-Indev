@@ -3,14 +3,14 @@
 #include <ArduinoJson.h>
 #include <time.h>
 
-const char* ssid = "Tenda_502";       // WiFi网络名称
-const char* password = "20031027"; // WiFi网络密码
+const char* ssid = "YOUR_WIFI_NAME";       // WiFi网络名称
+const char* password = "YOUR_WIFI_PASSWORD"; // WiFi网络密码
 
 // MQTT Broker settings
-const char *mqtt_broker = "fe09f90c.ala.cn-hangzhou.emqxsl.cn";  // EMQX broker endpoint
-const char *mqtt_topic = "emqx/esp8266";     // MQTT topic
-const char *mqtt_username = "liujiaren";  // MQTT username for authentication
-const char *mqtt_password = "liujiaren";  // MQTT password for authentication
+const char *mqtt_broker = "YOUR_MQTT_SERVER_ADDRESS";  // EMQX broker endpoint
+const char *mqtt_topic = "YOUR_TOPIC";     // MQTT topic
+const char *mqtt_username = "YOUR_CONNECTION_USERNAME";  // MQTT username for authentication
+const char *mqtt_password = "YOUR_CONNECTION_PASSWORD";  // MQTT password for authentication
 const int mqtt_port = 8883;  // MQTT port (TCP)
 
 
